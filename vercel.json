@@ -1,23 +1,17 @@
 {
   "version": 2,
-  "builds": [
+  "rewrites": [
     {
-      "src": "api/**/*.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/proxy",
-      "dest": "/api/proxy.js"
+      "source": "/api/proxy",
+      "destination": "/api/proxy.js"
     },
     {
-      "src": "/api/health",
-      "dest": "/api/index.js"
+      "source": "/api/health",
+      "destination": "/api/index.js"
     },
     {
-      "src": "/api",
-      "dest": "/api/index.js"
+      "source": "/api",
+      "destination": "/api/index.js"
     }
   ],
   "headers": [

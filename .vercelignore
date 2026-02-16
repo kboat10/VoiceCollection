@@ -1,0 +1,6 @@
+# Ignore these files for Vercel deployment
+server.js
+uploads/
+*.log
+node_modules/
+.env*

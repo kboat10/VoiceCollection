@@ -46,6 +46,9 @@ coverage/
 # Vercel
 .vercel
 
+# Don't deploy server.js to Vercel (use for local development only)
+# Vercel will use api/ folder functions instead
+
 # Temporary files
 temp_*
 *.tmp

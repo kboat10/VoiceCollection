@@ -1,6 +1,13 @@
 # Ignore these files for Vercel deployment
+# server.js is for local development only
 server.js
 uploads/
 *.log
-node_modules/
 .env*
+
+# Keep these files OUT of deployment to avoid confusion
+app.js
+styles-old.css
+styles-mobile.css
+README-DEPLOYMENT.md
+DEPLOYMENT.md

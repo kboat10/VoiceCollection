@@ -1,4 +1,8 @@
 {
+  "buildCommand": "echo 'No build required - static site'",
+  "outputDirectory": ".",
+  "installCommand": "echo 'No build dependencies required'",
+  "framework": null,
   "headers": [
     {
       "source": "/(.*)",

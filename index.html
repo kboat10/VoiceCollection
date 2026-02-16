@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Record</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Main App Container -->
+    <div class="app-container">
+        <!-- Header -->
+        <div class="header">
+            <button class="back-btn" id="back-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </button>
+            <h1 class="header-title">Voice record</h1>
+            <button class="menu-btn" id="menu-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="6" r="1.5" fill="currentColor"/>
+                    <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+                    <circle cx="12" cy="18" r="1.5" fill="currentColor"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Waveform Container -->
+        <div class="waveform-display" id="waveform-display">
+            <canvas id="waveform-canvas"></canvas>
+        </div>
+
+        <!-- Status Badge -->
+        <div class="status-badge" id="status-badge">
+            <span class="status-icon">●</span>
+            <span class="status-text">Recording</span>
+        </div>
+
+        <!-- Timer Display -->
+        <div class="timer-display" id="timer-display">00:00:00</div>
+
+        <!-- Phrase Display (for research mode) -->
+        <div class="phrase-display hidden" id="phrase-display">
+            <p class="phrase-text" id="phrase-text"></p>
+            <div class="phrase-counter" id="phrase-counter">1 / 98</div>
+        </div>
+
+        <!-- Control Buttons -->
+        <div class="control-buttons">
+            <button class="control-btn pause-btn" id="pause-btn" disabled>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="4" width="4" height="16" rx="1"/>
+                    <rect x="14" y="4" width="4" height="16" rx="1"/>
+                </svg>
+            </button>
+            <button class="control-btn stop-btn" id="stop-btn" disabled>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="4" y="4" width="16" height="16" rx="2"/>
+                </svg>
+            </button>
+            <button class="control-btn record-btn" id="record-btn-new">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="12" r="8"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Recent Records Section -->
+        <div class="recent-section">
+            <h2 class="recent-title">Recent records</h2>
+            <div class="records-list" id="records-list">
+                <!-- Records will be added dynamically -->
+            </div>
+        </div>
+
+        <!-- Theme Toggle -->
+        <button class="theme-toggle" id="theme-toggle">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="5"/>
+                <line x1="12" y1="1" x2="12" y2="3"/>
+                <line x1="12" y1="21" x2="12" y2="23"/>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                <line x1="1" y1="12" x2="3" y2="12"/>
+                <line x1="21" y1="12" x2="23" y2="12"/>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Welcome Modal (First time) -->
+    <div class="modal" id="welcome-modal">
+        <div class="modal-content consent-modal">
+            <h2>VoiceGuard Research Participant Consent</h2>
+            
+            <div class="consent-details">
+                <div class="consent-section">
+                    <h3>Research Title</h3>
+                    <p>Deepfake Audio Detection System Development</p>
+                </div>
+                
+                <div class="consent-section">
+                    <h3>Researcher</h3>
+                    <p>Nana Kwaku Afriyie Ampadu-Boateng<br>
+                    Computer Science, Ashesi University</p>
+                </div>
+                
+                <div class="consent-section">
+                    <h3>Supervisor</h3>
+                    <p>Dr. Govindha Yeluripati<br>
+                    Computer Science & Information Systems</p>
+                </div>
+                
+                <div class="consent-section">
+                    <h3>Purpose of Research</h3>
+                    <p>We are developing a system to detect AI-generated deepfake audio. Your participation will help us collect authentic voice data to test and validate our detection model. This real voice data is essential for training our algorithms to accurately distinguish between genuine and AI-generated audio, helping protect against voice cloning scams.</p>
+                </div>
+                
+                <div class="consent-section">
+                    <h3>What You Will Do</h3>
+                    <p>• Record 2-3 short voice clips by reading provided phrases (30 seconds maximum each)</p>
+                    <p>• Your voice recordings will serve as authentic human voice samples for testing our deepfake detection model</p>
+                </div>
+                
+                <div class="consent-section">
+                    <h3>Time Commitment</h3>
+                    <p>Approximately 3 to 5 minutes total.</p>
+                </div>
+                
+                <div class="consent-section">
+                    <h3>Voluntary Participation</h3>
+                    <p>Your participation is completely voluntary. You may withdraw at any time without penalty. If you withdraw, your data will be immediately and permanently deleted.</p>
+                    <p class="consent-small">Should any significant new findings emerge during this research that could affect your willingness to continue participating, you will be promptly informed and given the opportunity to reconsider your participation.</p>
+                </div>
+                
+                <div class="consent-section">
+                    <h3>Confidentiality</h3>
+                    <ul class="consent-list">
+                        <li>Your voice recordings will be anonymized and assigned a code</li>
+                        <li>No personal identifiers will be stored with your recordings</li>
+                        <li>Data will be stored on secure university servers</li>
+                        <li>Only the research team will have access to raw data</li>
+                        <li>Results will be presented in aggregate form only</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="consent-checkbox-container">
+                <label class="consent-checkbox">
+                    <input type="checkbox" id="consent-checkbox-main">
+                    <span>I have read and understood the above information. I consent to participate in this research study and understand that I can withdraw at any time.</span>
+                </label>
+            </div>
+            
+            <div class="modal-actions">
+                <button class="btn btn-primary" id="start-research-btn" disabled>I Consent - Start Recording</button>
+                <button class="btn btn-text" id="decline-btn">Decline</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Playback Modal -->
+    <div class="modal hidden" id="playback-modal">
+        <div class="modal-content">
+            <h3>Review Recording</h3>
+            <audio id="playback-audio" controls></audio>
+            <p class="playback-info">
+                <span id="playback-phrase"></span>
+            </p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="redo-recording-btn">Re-record</button>
+                <button class="btn btn-primary" id="submit-recording-btn">Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Toast -->
+    <div class="toast hidden" id="toast">
+        <span id="toast-message"></span>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="app-mobile.js"></script>
+</body>
+</html>

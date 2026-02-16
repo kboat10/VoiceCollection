@@ -3,9 +3,12 @@
 const CONFIG = {
     // API Configuration
     api: {
-        // Using local proxy to avoid CORS issues
-        // The proxy will forward requests to http://159.65.185.102/collect
-        endpoint: 'http://localhost:3000/api/proxy',
+        // API endpoint - will use Vercel serverless function when deployed
+        // For local development: http://localhost:3000/api/proxy
+        // For production: /api/proxy (relative URL works with Vercel)
+        endpoint: window.location.hostname === 'localhost' 
+            ? 'http://localhost:3000/api/proxy' 
+            : '/api/proxy',
         
         // Authentication token (if required)
         authToken: '', // Set this if your API requires authentication

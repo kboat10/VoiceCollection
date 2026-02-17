@@ -161,6 +161,28 @@
         </div>
     </div>
 
+    <!-- Thank You Modal (after 3 recordings) -->
+    <div class="modal hidden" id="thank-you-modal">
+        <div class="modal-content">
+            <h3>🎉 Thank You for Your Contribution!</h3>
+            <p style="font-size: 1.1em; line-height: 1.6; margin: 1.5rem 0;">
+                You've completed <strong>3 recordings</strong> - this is already incredibly valuable for our research!
+            </p>
+            <p style="line-height: 1.6; margin-bottom: 1.5rem;">
+                I am <strong>really grateful for your time</strong>. You can stop here if you'd like.
+            </p>
+            <p style="line-height: 1.6; color: var(--text-muted); margin-bottom: 1.5rem;">
+                <strong>Note:</strong> While you're welcome to continue recording more phrases, 
+                please note there are 98 total phrases, which would take approximately 20-25 minutes. 
+                For time's sake, I don't advise doing all of them in one session.
+            </p>
+            <div class="modal-actions" style="gap: 1rem;">
+                <button class="btn btn-primary" id="stop-here-btn">Stop Here - Submit Recordings</button>
+                <button class="btn btn-secondary" id="continue-recording-btn">Continue Recording</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Playback Modal -->
     <div class="modal hidden" id="playback-modal">
         <div class="modal-content">

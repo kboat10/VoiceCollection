@@ -23,6 +23,10 @@ class VoiceRecorder {
         this.analyser = null;
         this.dataArray = null;
         
+        // Track completed recordings for thank you modal
+        this.completedRecordingsCount = parseInt(localStorage.getItem('completedRecordingsCount') || '0');
+        this.hasSeenThankYouModal = localStorage.getItem('hasSeenThankYouModal') === 'true';
+        
         this.initializeApp();
     }
     
@@ -48,6 +52,11 @@ class VoiceRecorder {
             waveformCanvas: document.getElementById('waveform-canvas'),
             phraseDisplay: document.getElementById('phrase-display'),
             phraseText: document.getElementById('phrase-text'),
+            
+            // Thank you modal elements
+            thankYouModal: document.getElementById('thank-you-modal'),
+            stopHereBtn: document.getElementById('stop-here-btn'),
+            continueRecordingBtn: document.getElementById('continue-recording-btn'),
             phraseCounter: document.getElementById('phrase-counter'),
             recordsList: document.getElementById('records-list'),
             themeToggle: document.getElementById('theme-toggle'),
@@ -93,6 +102,10 @@ class VoiceRecorder {
             this.hideModal('welcome-modal');
             this.showToast('You declined to participate. You can still use free recording mode.', 'info');
         });
+        
+        // Thank you modal buttons
+        this.elements.stopHereBtn?.addEventListener('click', () => this.handleStopHere());
+        this.elements.continueRecordingBtn?.addEventListener('click', () => this.handleContinueRecording());
         
         // Playback modal
         document.getElementById('redo-recording-btn')?.addEventListener('click', () => {
@@ -286,6 +299,15 @@ class VoiceRecorder {
             });
             
             this.showToast('Recording uploaded successfully!', 'success');
+            
+            // Increment completed recordings count
+            this.completedRecordingsCount++;
+            localStorage.setItem('completedRecordingsCount', this.completedRecordingsCount.toString());
+            
+            // Show thank you modal after 3 recordings (only once)
+            if (this.completedRecordingsCount === 3 && !this.hasSeenThankYouModal) {
+                this.showThankYouModal();
+            }
             
             // Move to next phrase if in research mode
             if (this.isResearchMode) {
@@ -511,6 +533,33 @@ class VoiceRecorder {
     checkFirstVisit() {
         // Always show consent modal on page load (it's not hidden by default)
         // Modal will be hidden when user consents or declines
+    }
+    
+    showThankYouModal() {
+        this.hasSeenThankYouModal = true;
+        localStorage.setItem('hasSeenThankYouModal', 'true');
+        this.showModal('thank-you-modal');
+    }
+    
+    handleStopHere() {
+        this.hideModal('thank-you-modal');
+        this.showToast(`Thank you! You've contributed ${this.completedRecordingsCount} valuable recordings to our research. 🎉`, 'success');
+        
+        // Optionally exit research mode
+        if (this.isResearchMode) {
+            this.isResearchMode = false;
+            this.elements.phraseDisplay.classList.add('hidden');
+        }
+        
+        // Show summary message
+        setTimeout(() => {
+            this.showToast('You can close this window or continue browsing. Your recordings have been saved!', 'info');
+        }, 3000);
+    }
+    
+    handleContinueRecording() {
+        this.hideModal('thank-you-modal');
+        this.showToast('Great! Feel free to record more phrases at your own pace. 🎤', 'success');
     }
     
     // Utility functions

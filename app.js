@@ -230,39 +230,19 @@ class VoiceRecordingApp {
             };
             
             // Check if the specified mimeType is supported
-            // API accepts: mp3, wav, flac - try formats in order of compatibility
             if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                console.warn(`Configured mimeType ${options.mimeType} not supported`);
-                
-                // Try fallback formats in order of API compatibility
-                if (MediaRecorder.isTypeSupported('audio/mp4')) {
-                    options.mimeType = 'audio/mp4';
-                    console.log('Using audio/mp4 format (compatible with mp3)');
-                } else if (MediaRecorder.isTypeSupported('audio/mpeg')) {
-                    options.mimeType = 'audio/mpeg';
-                    console.log('Using audio/mpeg (mp3) format');
-                } else if (MediaRecorder.isTypeSupported('audio/wav')) {
-                    options.mimeType = 'audio/wav';
-                    console.log('Using audio/wav format');
-                } else if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-                    options.mimeType = 'audio/webm;codecs=opus';
-                    console.warn('Warning: Using webm/opus format - API may need to convert');
-                } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+                // Try fallback formats
+                if (MediaRecorder.isTypeSupported('audio/webm')) {
                     options.mimeType = 'audio/webm';
-                    console.warn('Warning: Using webm format - API may need to convert');
+                } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                    options.mimeType = 'audio/mp4';
                 } else {
                     options.mimeType = '';
-                    console.log('Using browser default format - API may need to convert');
                 }
-            } else {
-                console.log(`Using configured mimeType: ${options.mimeType}`);
             }
             
             this.mediaRecorder = new MediaRecorder(this.audioStream, options);
             this.audioChunks = [];
-            
-            // Log the actual format being used
-            console.log('MediaRecorder created with mimeType:', this.mediaRecorder.mimeType);
             
             this.mediaRecorder.addEventListener('dataavailable', event => {
                 this.audioChunks.push(event.data);
@@ -330,12 +310,8 @@ class VoiceRecordingApp {
 
     // Handle recording stop
     handleRecordingStop(isPractice) {
-        // Use the actual mimeType from the MediaRecorder
-        const actualMimeType = this.mediaRecorder ? this.mediaRecorder.mimeType : CONFIG.recording.mimeType;
-        const audioBlob = new Blob(this.audioChunks, { type: actualMimeType });
+        const audioBlob = new Blob(this.audioChunks, { type: CONFIG.recording.mimeType });
         const audioUrl = URL.createObjectURL(audioBlob);
-        
-        console.log('Recording completed. Blob type:', audioBlob.type, 'Size:', audioBlob.size, 'bytes');
         
         const duration = (Date.now() - this.recordingStartTime) / 1000;
         
@@ -445,22 +421,7 @@ class VoiceRecordingApp {
             
         } catch (error) {
             console.error('Error submitting recording:', error);
-            
-            // Provide more helpful error message
-            let errorMsg = 'Failed to upload recording. ';
-            if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
-                errorMsg += 'Network error - please check your internet connection.';
-            } else if (error.message.includes('CORS')) {
-                errorMsg += 'CORS error - server may need to allow cross-origin requests.';
-            } else if (error.message.includes('415') || error.message.includes('Unsupported Media Type')) {
-                errorMsg += 'Audio format not accepted by server. Please contact support.';
-            } else if (error.message.includes('422')) {
-                errorMsg += 'Invalid data format. Please try again.';
-            } else {
-                errorMsg += error.message || 'Please try again.';
-            }
-            
-            this.showError(errorMsg);
+            this.showError('Failed to upload recording. Please check your connection and try again.');
         } finally {
             this.showLoading(false);
         }
@@ -470,36 +431,19 @@ class VoiceRecordingApp {
     async uploadRecording(audioBlob, metadata, attemptNumber = 1) {
         const formData = new FormData();
         
-        // Add audio file (API expects 'file' field and accepts mp3, wav, flac)
-        // Determine file extension based on actual MIME type used
-        const actualMimeType = audioBlob.type || CONFIG.recording.mimeType;
-        let extension = 'webm'; // default fallback
-        
-        if (actualMimeType.includes('wav')) {
+        // Add audio file (API expects 'file' field)
+        // Determine file extension based on MIME type
+        let extension = 'webm';
+        if (CONFIG.recording.mimeType.includes('wav')) {
             extension = 'wav';
-        } else if (actualMimeType.includes('mpeg') || actualMimeType.includes('mp3')) {
+        } else if (CONFIG.recording.mimeType.includes('mp3')) {
             extension = 'mp3';
-        } else if (actualMimeType.includes('flac')) {
+        } else if (CONFIG.recording.mimeType.includes('mp4')) {
+            extension = 'mp4';
+        } else if (CONFIG.recording.mimeType.includes('flac')) {
             extension = 'flac';
-        } else if (actualMimeType.includes('mp4') || actualMimeType.includes('m4a')) {
-            extension = 'm4a';
-        } else if (actualMimeType.includes('webm')) {
-            extension = 'webm';
-        } else if (actualMimeType.includes('ogg')) {
-            extension = 'ogg';
         }
-        
         const filename = `recording_${metadata.sessionId}_${metadata.phraseId}.${extension}`;
-        console.log(`Uploading ${filename} with MIME type: ${actualMimeType}, Blob size: ${audioBlob.size} bytes`);
-        
-        // Log the FormData contents for debugging
-        console.log('FormData being sent:', {
-            filename: filename,
-            mimeType: actualMimeType,
-            size: audioBlob.size,
-            metadata: metadata
-        });
-        
         formData.append('file', audioBlob, filename);
         
         // Add label/metadata (API expects 'label' field)
@@ -527,18 +471,7 @@ class VoiceRecordingApp {
             clearTimeout(timeoutId);
             
             if (!response.ok) {
-                // Get detailed error message from API
-                let errorMessage = `HTTP error! status: ${response.status}`;
-                try {
-                    const errorData = await response.json();
-                    console.error('API Error Response:', errorData);
-                    errorMessage = `API Error ${response.status}: ${JSON.stringify(errorData)}`;
-                } catch (e) {
-                    const errorText = await response.text();
-                    console.error('API Error Text:', errorText);
-                    errorMessage = `API Error ${response.status}: ${errorText}`;
-                }
-                throw new Error(errorMessage);
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
             
             const result = await response.json();
@@ -547,7 +480,6 @@ class VoiceRecordingApp {
             
         } catch (error) {
             clearTimeout(timeoutId);
-            console.error('Upload error details:', error);
             
             // Retry logic
             if (attemptNumber < CONFIG.api.retryAttempts) {

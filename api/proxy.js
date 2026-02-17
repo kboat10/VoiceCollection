@@ -2,6 +2,8 @@
 // Note: Forwards requests directly without audio conversion
 // Voice Sentinel API must accept WebM/MP4 formats
 
+import fetch from 'node-fetch';
+
 // Disable body parsing - we need the raw body
 export const config = {
     api: {
@@ -28,40 +30,69 @@ export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     
+    const startTime = Date.now();
+    
     try {
-        console.log('Proxy request received');
-        console.log('Content-Type:', req.headers['content-type']);
+        console.log('[Proxy] Request received at', new Date().toISOString());
+        console.log('[Proxy] Content-Type:', req.headers['content-type']);
         
-        // Read the raw body as a buffer
+        // Read the raw body as a buffer with timeout
         const chunks = [];
         
-        await new Promise((resolve, reject) => {
-            req.on('data', (chunk) => chunks.push(chunk));
-            req.on('end', () => resolve());
-            req.on('error', (err) => reject(err));
+        const bodyPromise = new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                reject(new Error('Timeout reading request body'));
+            }, 10000); // 10 second timeout
+            
+            req.on('data', (chunk) => {
+                console.log('[Proxy] Received chunk:', chunk.length, 'bytes');
+                chunks.push(chunk);
+            });
+            
+            req.on('end', () => {
+                clearTimeout(timeout);
+                console.log('[Proxy] Body reading complete');
+                resolve();
+            });
+            
+            req.on('error', (err) => {
+                clearTimeout(timeout);
+                reject(err);
+            });
         });
         
+        await bodyPromise;
+        
         const body = Buffer.concat(chunks);
-        console.log('Body size:', body.length, 'bytes');
+        console.log('[Proxy] Total body size:', body.length, 'bytes');
         
         if (body.length === 0) {
             return res.status(400).json({ error: 'Empty request body' });
         }
         
-        console.log('Forwarding to Voice Sentinel API...');
+        console.log('[Proxy] Forwarding to Voice Sentinel API at http://159.65.185.102/collect');
         
-        // Forward to Voice Sentinel API
+        // Forward to Voice Sentinel API with timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 second timeout
+        
         const apiResponse = await fetch('http://159.65.185.102/collect', {
             method: 'POST',
             headers: {
                 'Content-Type': req.headers['content-type']
             },
-            body: body
+            body: body,
+            signal: controller.signal
         });
         
+        clearTimeout(timeoutId);
+        
         const responseText = await apiResponse.text();
-        console.log('Voice Sentinel Response Status:', apiResponse.status);
-        console.log('Voice Sentinel Response:', responseText.substring(0, 200));
+        const elapsed = Date.now() - startTime;
+        
+        console.log('[Proxy] Voice Sentinel Response Status:', apiResponse.status);
+        console.log('[Proxy] Response time:', elapsed, 'ms');
+        console.log('[Proxy] Response:', responseText.substring(0, 200));
         
         // Try to parse as JSON
         let responseData;
@@ -75,11 +106,23 @@ export default async function handler(req, res) {
         return res.status(apiResponse.status).json(responseData);
         
     } catch (error) {
-        console.error('Proxy error:', error);
+        const elapsed = Date.now() - startTime;
+        console.error('[Proxy] Error after', elapsed, 'ms:', error.message);
+        console.error('[Proxy] Stack:', error.stack);
+        
+        if (error.name === 'AbortError') {
+            return res.status(504).json({
+                success: false,
+                error: 'Gateway timeout - Voice Sentinel API did not respond in time',
+                elapsed: elapsed
+            });
+        }
+        
         return res.status(500).json({
             success: false,
             error: 'Proxy error: ' + error.message,
-            note: 'Check server logs for details'
+            elapsed: elapsed,
+            note: 'Check Vercel logs for details'
         });
     }
 }

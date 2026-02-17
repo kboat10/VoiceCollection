@@ -4,14 +4,7 @@
 
 const fetch = require('node-fetch');
 
-// Disable body parsing - we need the raw body
-module.exports.config = {
-    api: {
-        bodyParser: false,
-    },
-};
-
-module.exports = async function handler(req, res) {
+async function handler(req, res) {
     // Handle CORS preflight
     if (req.method === 'OPTIONS') {
         res.setHeader('Access-Control-Allow-Origin', '*');
@@ -126,3 +119,12 @@ module.exports = async function handler(req, res) {
         });
     }
 }
+
+// Disable body parsing - we need the raw body
+handler.config = {
+    api: {
+        bodyParser: false,
+    },
+};
+
+module.exports = handler;

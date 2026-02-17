@@ -1,8 +1,6 @@
 // Vercel Serverless Function - Proxy to Voice Sentinel API
-// Note: No audio conversion in serverless - Voice Sentinel API must accept WebM/MP4
-
-const fetch = require('node-fetch');
-const FormData = require('form-data');
+// Note: Forwards requests directly without audio conversion
+// Voice Sentinel API must accept WebM/MP4 formats
 
 module.exports = async (req, res) => {
     // Handle CORS preflight
@@ -24,30 +22,44 @@ module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     
     try {
-        // Parse multipart form data manually since Vercel doesn't support multer easily
-        const contentType = req.headers['content-type'];
+        console.log('Proxy request received');
+        console.log('Content-Type:', req.headers['content-type']);
         
-        if (!contentType || !contentType.includes('multipart/form-data')) {
-            return res.status(400).json({ 
-                error: 'Content-Type must be multipart/form-data' 
-            });
+        // In Vercel, we can't easily parse multipart/form-data
+        // So we'll forward the entire request body directly to Voice Sentinel API
+        
+        // Get raw body buffer
+        const chunks = [];
+        for await (const chunk of req) {
+            chunks.push(chunk);
         }
+        const body = Buffer.concat(chunks);
         
+        console.log('Body size:', body.length, 'bytes');
         console.log('Forwarding to Voice Sentinel API...');
         
-        // Forward the request directly to Voice Sentinel API
-        // Note: This forwards as-is without conversion
+        // Use node-fetch to forward to Voice Sentinel API
+        const fetch = (await import('node-fetch')).default;
+        
         const apiResponse = await fetch('http://159.65.185.102/collect', {
             method: 'POST',
             headers: {
-                'Content-Type': contentType
+                'Content-Type': req.headers['content-type']
             },
-            body: req
+            body: body
         });
         
-        const responseData = await apiResponse.json();
+        const responseText = await apiResponse.text();
+        console.log('Voice Sentinel Response Status:', apiResponse.status);
+        console.log('Voice Sentinel Response:', responseText.substring(0, 200));
         
-        console.log('Voice Sentinel API Response:', apiResponse.status);
+        // Try to parse as JSON
+        let responseData;
+        try {
+            responseData = JSON.parse(responseText);
+        } catch (e) {
+            responseData = { status: 'error', message: responseText };
+        }
         
         // Forward the response
         res.status(apiResponse.status).json(responseData);
@@ -57,7 +69,7 @@ module.exports = async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Proxy error: ' + error.message,
-            note: 'Audio must be in mp3, wav, or flac format'
+            note: 'Check server logs for details'
         });
     }
 };

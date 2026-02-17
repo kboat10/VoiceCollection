@@ -2,7 +2,14 @@
 // Note: Forwards requests directly without audio conversion
 // Voice Sentinel API must accept WebM/MP4 formats
 
-module.exports = async (req, res) => {
+// Disable body parsing - we need the raw body
+export const config = {
+    api: {
+        bodyParser: false,
+    },
+};
+
+export default async function handler(req, res) {
     // Handle CORS preflight
     if (req.method === 'OPTIONS') {
         res.setHeader('Access-Control-Allow-Origin', '*');
@@ -25,22 +32,25 @@ module.exports = async (req, res) => {
         console.log('Proxy request received');
         console.log('Content-Type:', req.headers['content-type']);
         
-        // In Vercel, we can't easily parse multipart/form-data
-        // So we'll forward the entire request body directly to Voice Sentinel API
-        
-        // Get raw body buffer
+        // Read the raw body as a buffer
         const chunks = [];
-        for await (const chunk of req) {
-            chunks.push(chunk);
-        }
-        const body = Buffer.concat(chunks);
         
+        await new Promise((resolve, reject) => {
+            req.on('data', (chunk) => chunks.push(chunk));
+            req.on('end', () => resolve());
+            req.on('error', (err) => reject(err));
+        });
+        
+        const body = Buffer.concat(chunks);
         console.log('Body size:', body.length, 'bytes');
+        
+        if (body.length === 0) {
+            return res.status(400).json({ error: 'Empty request body' });
+        }
+        
         console.log('Forwarding to Voice Sentinel API...');
         
-        // Use node-fetch to forward to Voice Sentinel API
-        const fetch = (await import('node-fetch')).default;
-        
+        // Forward to Voice Sentinel API
         const apiResponse = await fetch('http://159.65.185.102/collect', {
             method: 'POST',
             headers: {
@@ -62,14 +72,14 @@ module.exports = async (req, res) => {
         }
         
         // Forward the response
-        res.status(apiResponse.status).json(responseData);
+        return res.status(apiResponse.status).json(responseData);
         
     } catch (error) {
         console.error('Proxy error:', error);
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             error: 'Proxy error: ' + error.message,
             note: 'Check server logs for details'
         });
     }
-};
+}

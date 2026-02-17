@@ -237,9 +237,9 @@ app.post('/api/proxy', uploadMemory.single('file'), async (req, res) => {
         console.log('Forwarding to Voice Sentinel API...');
         const controller = new AbortController();
         const timeoutId = setTimeout(() => {
-            console.log('⚠️  Voice Sentinel API timeout after 30 seconds');
+            console.log('⚠️  Voice Sentinel API timeout after 10 seconds');
             controller.abort();
-        }, 30000); // 30 second timeout
+        }, 10000); // 10 second timeout (shorter for Cloudflare compatibility)
         
         try {
             const apiResponse = await fetch('http://159.65.185.102/collect', {
@@ -265,10 +265,12 @@ app.post('/api/proxy', uploadMemory.single('file'), async (req, res) => {
             
             if (fetchError.name === 'AbortError') {
                 console.error('Voice Sentinel API timeout');
-                return res.status(504).json({
-                    success: false,
-                    error: 'Voice Sentinel API timeout - no response after 30 seconds',
-                    note: 'Recording saved locally in uploads/ folder'
+                // Return success since recording is saved locally
+                return res.status(200).json({
+                    success: true,
+                    message: 'Recording saved locally (Voice Sentinel API unavailable)',
+                    localFile: filename,
+                    note: 'Voice Sentinel API timed out after 10 seconds. Recording stored in uploads/ folder for later upload.'
                 });
             }
             

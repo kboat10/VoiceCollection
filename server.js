@@ -233,21 +233,47 @@ app.post('/api/proxy', uploadMemory.single('file'), async (req, res) => {
         });
         formData.append('label', label);
 
-        // Forward to Voice Sentinel API
-        const apiResponse = await fetch('http://159.65.185.102/collect', {
-            method: 'POST',
-            body: formData,
-            headers: formData.getHeaders()
-        });
-
-        const responseData = await apiResponse.json();
+        // Forward to Voice Sentinel API with timeout
+        console.log('Forwarding to Voice Sentinel API...');
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+            console.log('⚠️  Voice Sentinel API timeout after 30 seconds');
+            controller.abort();
+        }, 30000); // 30 second timeout
         
-        console.log('API Response Status:', apiResponse.status);
-        console.log('API Response:', responseData);
-        console.log('====================================\n');
+        try {
+            const apiResponse = await fetch('http://159.65.185.102/collect', {
+                method: 'POST',
+                body: formData,
+                headers: formData.getHeaders(),
+                signal: controller.signal
+            });
 
-        // Forward the response
-        res.status(apiResponse.status).json(responseData);
+            clearTimeout(timeoutId);
+
+            const responseData = await apiResponse.json();
+            
+            console.log('API Response Status:', apiResponse.status);
+            console.log('API Response:', responseData);
+            console.log('====================================\n');
+
+            // Forward the response
+            res.status(apiResponse.status).json(responseData);
+            
+        } catch (fetchError) {
+            clearTimeout(timeoutId);
+            
+            if (fetchError.name === 'AbortError') {
+                console.error('Voice Sentinel API timeout');
+                return res.status(504).json({
+                    success: false,
+                    error: 'Voice Sentinel API timeout - no response after 30 seconds',
+                    note: 'Recording saved locally in uploads/ folder'
+                });
+            }
+            
+            throw fetchError; // Re-throw other errors to outer catch
+        }
 
     } catch (error) {
         console.error('Proxy error:', error);

@@ -2,7 +2,7 @@
 // Note: Forwards requests directly without audio conversion
 // Voice Sentinel API must accept WebM/MP4 formats
 
-import fetch from 'node-fetch';
+const fetch = require('node-fetch');
 
 // Disable body parsing - we need the raw body
 export const config = {

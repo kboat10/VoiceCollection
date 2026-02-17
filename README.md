@@ -1,370 +1,312 @@
-# Voice Recording Web Application for Research Data Collection
+# VoiceGuard: Voice Data Collection for Deepfake Detection Research
 
-A production-ready web application for collecting voice recordings from participants for research purposes. The application presents randomized phrases, records audio, and submits recordings to an API for feature extraction.
+A web application for collecting voice recordings as part of deepfake detection research at Ashesi University.
 
-## Features
+**Researcher:** Nana Kwaku Afriyie Ampadu-Boateng  
+**Supervisor:** Dr. Govindha Yeluripati  
+**Institution:** Ashesi University, Computer Science Department
 
-✅ **User-Friendly Interface**
-- Clean, modern design optimized for quick recording sessions
-- Mobile-responsive layout
-- Clear visual feedback for recording states
-- Progress tracking
+---
 
-✅ **Recording Functionality**
-- Web Audio API integration
-- Real-time waveform visualization
-- Automatic quality checks
-- Review and re-record options
-- Maximum duration limits
+## 🚀 Quick Start (Recommended for Data Collection)
 
-✅ **Phrase Management**
-- Randomized phrase presentation
-- Prevention of order bias
-- Skip functionality (optional)
-- Break intervals for long sessions
+### Option 1: Simple Startup (Recommended)
 
-✅ **API Integration**
-- Automatic upload to feature extraction API
-- Retry logic for failed uploads
-- Comprehensive metadata collection
-- Session tracking
+```bash
+cd "Audio recording"
+./start-server.sh
+```
 
-✅ **Session Management**
-- LocalStorage for session recovery
-- Unique session IDs
-- Progress persistence
-- Demographic data collection (optional)
+Then open your browser to `http://localhost:3000`
 
-✅ **Error Handling**
-- Microphone permission handling
-- Network connectivity checks
-- Browser compatibility checks
-- User-friendly error messages
+### Option 2: Manual Startup
 
-## Quick Start
+```bash
+cd "Audio recording"
+npm install    # First time only
+node server.js
+```
 
-### 1. Configuration
+---
 
-Edit `config.js` to customize the application:
+## ⚠️ Important: Vercel vs Local Server
+
+### Use Local Server For:
+- ✅ **Actual data collection** (recordings sent to Voice Sentinel API)
+- ✅ Audio conversion (WebM/MP4 → MP3)
+- ✅ Reliable uploads
+- ✅ Local backups in `uploads/` folder
+
+### Vercel Deployment Issues:
+- ❌ Voice Sentinel API times out from Vercel servers
+- ❌ No FFmpeg (can't convert audio)
+- ❌ 10-second serverless timeout
+- ⚠️ **Use Vercel only for UI preview, NOT data collection**
+
+**Vercel URL:** https://voice-collection-taupe.vercel.app/ (UI preview only)
+
+---
+
+## 📱 Features
+
+### Core Features
+- **Consent Management** - Detailed research consent form
+- **Voice Recording** - High-quality audio capture (16kHz sample rate)
+- **Research Mode** - 98 pre-defined phrases for participants to read
+- **Waveform Visualization** - Real-time audio feedback
+- **Session Management** - Automatic session recovery
+- **Recent Recordings** - Local storage with replay and delete
+- **Dark Mode** - Eye-friendly interface
+- **Mobile-First Design** - Optimized for phones and tablets
+
+### Technical Features
+- **Audio Conversion** - Automatic conversion to API-compatible formats (MP3)
+- **Metadata Collection** - Session ID, timestamps, duration, sample rate
+- **Error Handling** - Graceful fallbacks and user-friendly messages
+- **Data Backup** - Local copies saved in `uploads/` folder
+
+---
+
+## 📋 Requirements
+
+### Required
+- **Node.js** (v14+) - [Download](https://nodejs.org/)
+- **FFmpeg** - For audio conversion
+
+### Install FFmpeg
+
+```bash
+# macOS
+brew install ffmpeg
+
+# Ubuntu/Debian
+sudo apt-get install ffmpeg
+
+# Windows
+# Download from https://ffmpeg.org/download.html
+```
+
+---
+
+## 🔧 Setup
+
+### 1. Install Dependencies
+
+```bash
+npm install
+```
+
+### 2. Configuration
+
+The app is pre-configured for the Voice Sentinel API. Configuration is in `config.js`:
 
 ```javascript
 const CONFIG = {
     api: {
-        endpoint: 'https://your-api-endpoint.com/api/recordings',
-        authToken: '', // Add if authentication required
-        timeout: 30000,
-        retryAttempts: 3
+        endpoint: 'http://localhost:3000/api/proxy',  // Local proxy
+        targetApi: 'http://159.65.185.102/collect'    // Voice Sentinel API
     },
     recording: {
-        maxDuration: 15,
-        mimeType: 'audio/webm',
+        mimeType: 'audio/mp4',
         sampleRate: 16000
-    },
-    phrases: [
-        "Your phrase 1",
-        "Your phrase 2",
-        // Add all your research phrases here
-    ]
+    }
+    // ... more settings
 };
 ```
 
-### 2. API Endpoint Setup
-
-Your API endpoint should accept POST requests with:
-
-**Request Format:**
-- Method: `POST`
-- Content-Type: `multipart/form-data`
-- Body:
-  - `audio`: Audio file (blob)
-  - `metadata`: JSON string containing:
-    - `sessionId`: Unique session identifier
-    - `phraseId`: Index of the phrase
-    - `phraseText`: The actual phrase text
-    - `timestamp`: Recording timestamp
-    - `duration`: Recording duration in seconds
-    - `audioFormat`: MIME type of audio
-    - `sampleRate`: Audio sample rate
-    - `projectId`: Your project identifier
-    - `appVersion`: Application version
-
-**Example metadata:**
-```json
-{
-    "sessionId": "session_1708117200000_abc123xyz",
-    "phraseId": 0,
-    "phraseText": "The quick brown fox jumps over the lazy dog",
-    "timestamp": 1708117200000,
-    "duration": 3.5,
-    "audioFormat": "audio/webm",
-    "sampleRate": 16000,
-    "projectId": "voice_research_2024",
-    "appVersion": "1.0.0"
-}
-```
-
-**Expected Response:**
-```json
-{
-    "success": true,
-    "recordingId": "unique-id",
-    "message": "Recording processed successfully"
-}
-```
-
-### 3. Deployment
-
-#### Option A: Simple Local Testing
-
-1. Open `index.html` in a web browser
-2. Note: HTTPS required for microphone access (except localhost)
-
-#### Option B: Deploy to Web Server
-
-1. Upload all files to your web server
-2. Ensure HTTPS is enabled
-3. Configure CORS if API is on different domain
-
-#### Option C: Use Python Simple Server
+### 3. Start Server
 
 ```bash
-# Python 3
-python -m http.server 8000
-
-# Then visit http://localhost:8000
+node server.js
 ```
 
-#### Option D: Use Node.js http-server
+Or use the startup script:
 
 ```bash
-npm install -g http-server
-http-server -p 8000
+./start-server.sh
 ```
 
-## File Structure
+### 4. Access Application
 
+**Local access:**
 ```
-audio-recording/
-├── index.html          # Main HTML structure
-├── styles.css          # Styling and responsive design
-├── config.js           # Configuration settings
-├── app.js              # Core application logic
-└── README.md           # This file
+http://localhost:3000
 ```
 
-## Browser Compatibility
-
-✅ **Supported Browsers:**
-- Chrome 60+
-- Firefox 55+
-- Safari 14+
-- Edge 79+
-
-⚠️ **Requirements:**
-- HTTPS connection (except localhost)
-- Microphone permissions
-- JavaScript enabled
-
-## Customization Guide
-
-### Adding Custom Phrases
-
-Edit the `phrases` array in `config.js`:
-
-```javascript
-phrases: [
-    "Your custom phrase 1",
-    "Your custom phrase 2",
-    "Your custom phrase 3",
-    // Add as many as needed
-]
+**Network access (other devices on same WiFi):**
+```
+http://YOUR_LOCAL_IP:3000
 ```
 
-### Adjusting Recording Duration
+Find your IP:
+```bash
+# macOS/Linux
+ifconfig | grep "inet "
 
-Modify in `config.js`:
-
-```javascript
-recording: {
-    maxDuration: 15,  // Maximum seconds
-    minDuration: 0.5  // Minimum seconds
-}
+# Windows
+ipconfig
 ```
-
-### Changing Break Intervals
-
-```javascript
-ui: {
-    breakAfterRecordings: 10  // Show break after N recordings
-}
-```
-
-### Disabling Features
-
-```javascript
-ui: {
-    showWaveform: false,      // Disable waveform visualization
-    enablePracticeMode: false, // Disable practice recording
-    allowSkip: false          // Disable skip button
-}
-```
-
-### Custom Styling
-
-Edit `styles.css` to change colors, fonts, and layout. Key CSS variables are at the top:
-
-```css
-:root {
-    --primary-color: #4A90E2;
-    --success-color: #28A745;
-    --danger-color: #DC3545;
-    /* ... more variables */
-}
-```
-
-## API Integration Examples
-
-### Example 1: Node.js/Express Backend
-
-```javascript
-const express = require('express');
-const multer = require('multer');
-const upload = multer({ dest: 'uploads/' });
-
-app.post('/api/recordings', upload.single('audio'), (req, res) => {
-    const audioFile = req.file;
-    const metadata = JSON.parse(req.body.metadata);
-    
-    // Process audio file
-    // Extract features
-    // Store in database
-    
-    res.json({ 
-        success: true, 
-        recordingId: generateId(),
-        message: 'Recording processed successfully'
-    });
-});
-```
-
-### Example 2: Python/Flask Backend
-
-```python
-from flask import Flask, request, jsonify
-from werkzeug.utils import secure_filename
-
-@app.route('/api/recordings', methods=['POST'])
-def upload_recording():
-    audio_file = request.files['audio']
-    metadata = json.loads(request.form['metadata'])
-    
-    filename = secure_filename(audio_file.filename)
-    audio_file.save(os.path.join('uploads', filename))
-    
-    # Process audio file
-    # Extract features
-    # Store in database
-    
-    return jsonify({
-        'success': True,
-        'recordingId': generate_id(),
-        'message': 'Recording processed successfully'
-    })
-```
-
-## Troubleshooting
-
-### Microphone Not Working
-
-1. Check browser permissions
-2. Ensure HTTPS connection
-3. Try different browser
-4. Check system microphone settings
-
-### Recordings Not Uploading
-
-1. Verify API endpoint is correct
-2. Check CORS configuration
-3. Verify network connectivity
-4. Check browser console for errors
-
-### Audio Format Issues
-
-If `audio/webm` isn't supported, the app will fallback to:
-1. `audio/mp4`
-2. Browser default
-
-You can also manually set in `config.js`:
-
-```javascript
-recording: {
-    mimeType: 'audio/mp4'  // or 'audio/wav'
-}
-```
-
-## Privacy & Ethics
-
-This application is designed for research purposes. Ensure you:
-
-- ✅ Obtain proper IRB/ethics approval
-- ✅ Provide informed consent
-- ✅ Explain data usage clearly
-- ✅ Anonymize participant data
-- ✅ Store data securely
-- ✅ Allow participants to withdraw
-- ✅ Comply with data protection regulations (GDPR, etc.)
-
-## Performance Optimization
-
-### For Long Sessions
-
-- Enable break intervals
-- Reduce phrase count per session
-- Implement batch uploads
-- Use compression for audio files
-
-### For Mobile Devices
-
-- Test on actual devices
-- Optimize for touch interactions
-- Consider bandwidth limitations
-- Implement offline support
-
-## Advanced Features (Optional Enhancements)
-
-Want to add more features? Consider:
-
-- **Real-time audio level monitoring**
-- **Automatic silence trimming**
-- **Background noise detection**
-- **Multi-language support**
-- **Admin dashboard**
-- **Export to CSV**
-- **Audio quality metrics**
-- **Progressive Web App (PWA)**
-
-## Support & Contributing
-
-For issues or questions:
-1. Check browser console for errors
-2. Verify configuration settings
-3. Test API endpoint independently
-4. Review browser compatibility
-
-## License
-
-This project is provided as-is for research purposes. Modify and use as needed for your research study.
-
-## Version History
-
-**v1.0.0** - Initial release
-- Core recording functionality
-- API integration
-- Session management
-- Practice mode
-- Break intervals
-- Error handling
 
 ---
 
-**Built for Research** | **Privacy-Focused** | **Mobile-Ready**
+## 📚 Documentation
+
+- **[PRODUCTION-SETUP.md](PRODUCTION-SETUP.md)** - Complete production deployment guide
+- **[VERCEL-DEPLOYMENT.md](VERCEL-DEPLOYMENT.md)** - Vercel limitations and issues
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - General deployment options
+
+---
+
+## 🔄 How It Works
+
+### Data Flow
+
+```
+Browser Recording
+    ↓
+Local Server (localhost:3000)
+    ↓
+Audio Conversion (WebM/MP4 → MP3)
+    ↓
+Voice Sentinel API (159.65.185.102)
+    ↓
+Success Response
+```
+
+### Local Backup
+
+All recordings are saved to `uploads/` folder:
+- Audio file: `recording-{timestamp}-{id}.mp3`
+- Metadata: `rec_{timestamp}_{id}.json`
+
+---
+
+## 🧪 Testing
+
+### Test Recording
+1. Open `http://localhost:3000`
+2. Review and accept consent form
+3. Click "Start Recording"
+4. Read the displayed phrase
+5. Click "Stop Recording"
+6. Check `uploads/` folder for saved files
+7. Check server logs for API response
+
+### Expected Logs
+
+```
+[Proxy] Request received at 2026-02-17T16:00:00.000Z
+[Proxy] Body size: 245678 bytes
+Converting audio to MP3 format...
+FFmpeg conversion successful
+[Proxy] Voice Sentinel Response Status: 200
+Recording saved successfully
+```
+
+---
+
+## 🐛 Troubleshooting
+
+### Microphone Not Accessible
+- **Issue:** Browser requires HTTPS for microphone
+- **Solution:** Use `localhost` or ngrok for HTTPS
+
+### Recordings Not Uploading
+- **Check:** Server logs for errors
+- **Verify:** Voice Sentinel API is accessible
+- **Check:** `uploads/` folder for local backups
+
+### FFmpeg Errors
+- **Issue:** FFmpeg not installed or not in PATH
+- **Solution:** Install FFmpeg (see Requirements)
+- **Verify:** Run `ffmpeg -version`
+
+### Vercel Deployment Timeout
+- **Issue:** Voice Sentinel API not responding from Vercel
+- **Solution:** Use local server instead (see PRODUCTION-SETUP.md)
+
+---
+
+## 🔐 Security & Privacy
+
+### Participant Data
+- Consent required before any recording
+- Session IDs anonymized
+- Data used only for research purposes
+- Confidentiality maintained per research protocol
+
+### Technical Security
+- HTTPS required for microphone access (use ngrok or localhost)
+- No data stored in browser beyond session recovery
+- Recent recordings only stored locally (can be cleared)
+
+---
+
+## 📊 Research Information
+
+### Purpose
+Collection of authentic voice samples for training and testing deepfake detection models.
+
+### What Participants Do
+- Review and sign consent form
+- Record themselves reading pre-defined phrases
+- Each recording is 5-10 seconds
+- Total time: 10-15 minutes
+
+### Data Collected
+- Audio recordings (voice only)
+- Metadata (timestamp, duration, sample rate)
+- Session information (anonymized)
+
+### Voluntary Participation
+- Participation is completely voluntary
+- Participants can withdraw at any time
+- No penalty for withdrawal
+
+---
+
+## 🛠️ Tech Stack
+
+### Frontend
+- HTML5, CSS3, JavaScript (Vanilla)
+- Web Audio API & MediaRecorder API
+- Canvas API (waveform visualization)
+- LocalStorage (session management)
+
+### Backend
+- Node.js + Express
+- Multer (file uploads)
+- FFmpeg (audio conversion)
+- node-fetch (API proxy)
+
+### Deployment
+- Local: Node.js server
+- Static UI: Vercel (preview only)
+- Production: Local server required
+
+---
+
+## 📞 Support
+
+For issues or questions about:
+- **Research participation:** Contact Nana Kwaku Afriyie Ampadu-Boateng
+- **Technical issues:** Check PRODUCTION-SETUP.md or open GitHub issue
+- **API access:** Contact Voice Sentinel API administrator
+
+---
+
+## 📄 License
+
+MIT License - See LICENSE file for details
+
+---
+
+## 🙏 Acknowledgments
+
+- **Supervisor:** Dr. Govindha Yeluripati, Ashesi University
+- **Participants:** Thank you for contributing to deepfake detection research
+- **Voice Sentinel API:** External API for voice data processing
+
+---
+
+**Last Updated:** February 17, 2026

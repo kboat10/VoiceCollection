@@ -3,12 +3,11 @@
 const CONFIG = {
     // API Configuration
     api: {
-        // API endpoint - will use Vercel serverless function when deployed
-        // For local development: http://localhost:3000/api/proxy
-        // For production: /api/proxy (relative URL works with Vercel)
-        endpoint: window.location.hostname === 'localhost' 
-            ? 'http://localhost:3000/api/proxy' 
-            : '/api/proxy',
+        // Use relative path for proxy - works with both localhost and Cloudflare tunnel
+        endpoint: '/api/proxy',
+        
+        // Target API (used by server-side proxy)
+        targetApi: 'http://159.65.185.102/collect',
         
         // Authentication token (if required)
         authToken: '', // Set this if your API requires authentication
@@ -29,8 +28,7 @@ const CONFIG = {
         maxDuration: 15,
         
         // Audio format - API accepts mp3, wav, or flac
-        // Using audio/mp4 as it's most widely supported in browsers and closest to mp3
-        mimeType: 'audio/mp4',
+        mimeType: 'audio/wav',
         
         // Sample rate (16000 Hz is good for speech)
         sampleRate: 16000,
@@ -181,26 +179,13 @@ const CONFIG = {
     // Metadata to include with each recording
     metadata: {
         // Project identifier
-        projectId: 'voiceguard_deepfake_detection_2024',
-        
-        // Research information
-        researchTitle: 'Deepfake Audio Detection System Development',
-        researcher: 'Nana Kwaku Afriyie Ampadu-Boateng',
-        researcherDepartment: 'Computer Science',
-        institution: 'Ashesi University',
-        supervisor: 'Dr. Govindha Yeluripati',
-        supervisorDepartment: 'Computer Science & Information Systems',
+        projectId: 'voice_research_2024',
         
         // Version of the data collection app
         appVersion: '1.0.0',
         
         // Additional custom fields (optional)
-        customFields: {
-            participantConsented: true,
-            dataUsage: 'authentic_voice_data_collection',
-            purpose: 'model_testing_and_validation',
-            dataType: 'human_voice_baseline'
-        }
+        customFields: {}
     }
 };
 

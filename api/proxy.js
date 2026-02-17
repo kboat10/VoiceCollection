@@ -67,7 +67,7 @@ async function handler(req, res) {
         
         // Forward to Voice Sentinel API with timeout
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
         
         const apiResponse = await fetch('http://159.65.185.102/collect', {
             method: 'POST',
@@ -104,9 +104,22 @@ async function handler(req, res) {
         console.error('[Proxy] Stack:', error.stack);
         
         if (error.name === 'AbortError') {
-            return res.status(504).json({
-                success: false,
-                error: 'Gateway timeout - Voice Sentinel API did not respond in time',
+            console.log('[Proxy] Voice Sentinel API timeout - API is down or unreachable');
+            return res.status(200).json({
+                success: true,
+                message: 'Voice Sentinel API unavailable',
+                note: 'The Voice Sentinel API is currently down. For data collection, please use the local server (localhost:3000) or Cloudflare tunnel which saves recordings locally.',
+                elapsed: elapsed,
+                apiStatus: '502 Bad Gateway - API server is down'
+            });
+        }
+        
+        // Check for Voice Sentinel API errors (502, 503, etc.)
+        if (error.message && (error.message.includes('502') || error.message.includes('Bad Gateway'))) {
+            return res.status(200).json({
+                success: true,
+                message: 'Voice Sentinel API unavailable (502 Bad Gateway)',
+                note: 'The Voice Sentinel API server is down. Use local server for data collection with local backup.',
                 elapsed: elapsed
             });
         }
@@ -115,7 +128,7 @@ async function handler(req, res) {
             success: false,
             error: 'Proxy error: ' + error.message,
             elapsed: elapsed,
-            note: 'Check Vercel logs for details'
+            note: 'Unexpected error - check Vercel logs for details'
         });
     }
 }

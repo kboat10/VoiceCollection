@@ -3,6 +3,12 @@
   "outputDirectory": ".",
   "installCommand": "echo 'No build dependencies required'",
   "framework": null,
+  "rewrites": [
+    {
+      "source": "/api/submit",
+      "destination": "http://45.55.247.199/api/crowdsource/submit"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",

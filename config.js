@@ -3,8 +3,9 @@
 const CONFIG = {
     // API Configuration
     api: {
-        // Crowdsource submission endpoint
-        endpoint: 'http://45.55.247.199/api/crowdsource/submit'
+        // Relative path — Vercel proxies this to http://45.55.247.199/api/crowdsource/submit
+        // to avoid HTTPS mixed content issues when served from Vercel
+        endpoint: '/api/submit'
     },
 
     // Recording Settings

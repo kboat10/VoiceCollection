@@ -72,20 +72,6 @@ body:has(.modal:not(.hidden)) .app-container {
     padding: 10px 0;
 }
 
-.back-btn, .menu-btn {
-    background: none;
-    border: none;
-    color: var(--text-primary);
-    cursor: pointer;
-    padding: 8px;
-    border-radius: 8px;
-    transition: background 0.2s;
-}
-
-.back-btn:hover, .menu-btn:hover {
-    background: var(--surface);
-}
-
 .header-title {
     font-size: 1.25rem;
     font-weight: 600;
@@ -157,6 +143,13 @@ body:has(.modal:not(.hidden)) .app-container {
     padding: 24px;
     margin-bottom: 30px;
     text-align: center;
+}
+
+.phrase-instruction {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-bottom: 12px;
 }
 
 .phrase-text {
@@ -244,91 +237,7 @@ body:has(.modal:not(.hidden)) .app-container {
     }
 }
 
-/* Recent Records Section */
-.recent-section {
-    flex: 1;
-    overflow-y: auto;
-}
-
-.recent-title {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 16px;
-}
-
-.records-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.record-item {
-    background: var(--surface);
-    border-radius: 12px;
-    padding: 16px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.record-item:hover {
-    background: var(--border);
-}
-
-.play-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    background: var(--primary);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.record-info {
-    flex: 1;
-}
-
-.record-name {
-    font-size: 0.9375rem;
-    font-weight: 500;
-    color: var(--text-primary);
-    margin-bottom: 4px;
-}
-
-.record-duration {
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-}
-
-.record-actions {
-    display: flex;
-    gap: 8px;
-}
-
-.icon-btn {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    border: none;
-    background: transparent;
-    color: var(--text-secondary);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-}
-
-.icon-btn:hover {
-    background: var(--border);
-    color: var(--text-primary);
-}
+/* Theme Toggle */
 
 /* Theme Toggle */
 .theme-toggle {
@@ -503,6 +412,13 @@ body:has(.modal:not(.hidden)) .app-container {
     border-radius: 12px;
     font-size: 0.9375rem;
     margin-bottom: 24px;
+}
+
+.playback-meta {
+    display: block;
+    margin-top: 10px;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
 }
 
 .modal-actions {

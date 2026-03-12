@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voice Record</title>
+    <title>VoiceGuard Crowdsource Recorder</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -11,19 +11,8 @@
     <div class="app-container">
         <!-- Header -->
         <div class="header">
-            <button class="back-btn" id="back-btn">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                    <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-            </button>
-            <h1 class="header-title">Voice record</h1>
-            <button class="menu-btn" id="menu-btn">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="6" r="1.5" fill="currentColor"/>
-                    <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
-                    <circle cx="12" cy="18" r="1.5" fill="currentColor"/>
-                </svg>
-            </button>
+            <h1 class="header-title">VoiceGuard Recorder</h1>
+            <span></span>
         </div>
 
         <!-- Waveform Container -->
@@ -42,8 +31,9 @@
 
         <!-- Phrase Display (for research mode) -->
         <div class="phrase-display hidden" id="phrase-display">
+            <p class="phrase-instruction">Read the phrase clearly and naturally:</p>
             <p class="phrase-text" id="phrase-text"></p>
-            <div class="phrase-counter" id="phrase-counter">1 / 98</div>
+            <div class="phrase-counter" id="phrase-counter">1 / 110</div>
         </div>
 
         <!-- Control Buttons -->
@@ -64,14 +54,6 @@
                     <circle cx="12" cy="12" r="8"/>
                 </svg>
             </button>
-        </div>
-
-        <!-- Recent Records Section -->
-        <div class="recent-section">
-            <h2 class="recent-title">Recent records</h2>
-            <div class="records-list" id="records-list">
-                <!-- Records will be added dynamically -->
-            </div>
         </div>
 
         <!-- Theme Toggle -->
@@ -120,7 +102,9 @@
                 
                 <div class="consent-section">
                     <h3>What You Will Do</h3>
-                    <p>• Record 2-3 short voice clips by reading provided phrases (30 seconds maximum each)</p>
+                    <p>• Record voice clips by reading provided phrases (up to 30 seconds each)</p>
+                    <p>• You can record as many or as few clips as you'd like—contribute what you're comfortable with</p>
+                    <p>• Speak as clearly as possible for best results</p>
                     <p>• Your voice recordings will serve as authentic human voice samples for testing our deepfake detection model</p>
                 </div>
                 
@@ -138,10 +122,11 @@
                 <div class="consent-section">
                     <h3>Confidentiality</h3>
                     <ul class="consent-list">
-                        <li>Your voice recordings will be anonymized and assigned a code</li>
-                        <li>No personal identifiers will be stored with your recordings</li>
-                        <li>Data will be stored on secure university servers</li>
-                        <li>Only the research team will have access to raw data</li>
+                        <li>Your submitted recording is used only to infer acoustic features for the research model</li>
+                        <li>The voice recordings themselves are not stored after feature extraction</li>
+                        <li>No personal identifiers will be stored with the inferred features</li>
+                        <li>The inferred features are stored on secure university servers</li>
+                        <li>Only the research team will have access to the stored feature data</li>
                         <li>Results will be presented in aggregate form only</li>
                     </ul>
                 </div>
@@ -173,7 +158,7 @@
             </p>
             <p style="line-height: 1.6; color: var(--text-muted); margin-bottom: 1.5rem;">
                 <strong>Note:</strong> While you're welcome to continue recording more phrases, 
-                please note there are 98 total phrases, which would take approximately 20-25 minutes. 
+                please note there are 110 total phrases, which would take approximately 25-30 minutes. 
                 For time's sake, I don't advise doing all of them in one session.
             </p>
             <div class="modal-actions" style="gap: 1rem;">
@@ -190,6 +175,7 @@
             <audio id="playback-audio" controls></audio>
             <p class="playback-info">
                 <span id="playback-phrase"></span>
+                <span class="playback-meta" id="playback-meta"></span>
             </p>
             <div class="modal-actions">
                 <button class="btn btn-secondary" id="redo-recording-btn">Re-record</button>

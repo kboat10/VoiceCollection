@@ -4,13 +4,17 @@ class VoiceRecorder {
         this.isRecording = false;
         this.isPaused = false;
         this.isResearchMode = false;
-        this.mediaRecorder = null;
-        this.audioChunks = [];
         this.audioStream = null;
         this.startTime = null;
         this.elapsedTime = 0;
         this.timerInterval = null;
         this.animationFrame = null;
+        this.maxDurationTimeout = null;
+        this.recordedChunks = [];
+        this.recordingSampleRate = CONFIG.recording.sampleRate;
+        this.mediaSource = null;
+        this.processorNode = null;
+        this.silenceGain = null;
         
         // Research mode
         this.phrases = [];
@@ -27,14 +31,15 @@ class VoiceRecorder {
         this.completedRecordingsCount = parseInt(localStorage.getItem('completedRecordingsCount') || '0');
         this.hasSeenThankYouModal = localStorage.getItem('hasSeenThankYouModal') === 'true';
         
+        // Track pending uploads (for background submission)
+        this.pendingUploads = 0;
+        
         this.initializeApp();
     }
     
     initializeApp() {
         this.setupElements();
         this.attachEventListeners();
-        this.loadRecentRecordings();
-        this.checkFirstVisit();
         this.setupWaveform();
         
         // Load theme
@@ -58,12 +63,12 @@ class VoiceRecorder {
             stopHereBtn: document.getElementById('stop-here-btn'),
             continueRecordingBtn: document.getElementById('continue-recording-btn'),
             phraseCounter: document.getElementById('phrase-counter'),
-            recordsList: document.getElementById('records-list'),
             themeToggle: document.getElementById('theme-toggle'),
             welcomeModal: document.getElementById('welcome-modal'),
             playbackModal: document.getElementById('playback-modal'),
             playbackAudio: document.getElementById('playback-audio'),
             playbackPhrase: document.getElementById('playback-phrase'),
+            playbackMeta: document.getElementById('playback-meta'),
             toast: document.getElementById('toast'),
             toastMessage: document.getElementById('toast-message')
         };
@@ -95,7 +100,7 @@ class VoiceRecorder {
             this.elements.phraseDisplay.classList.remove('hidden');
             this.displayCurrentPhrase();
             this.hideModal('welcome-modal');
-            this.showToast('Thank you for participating!', 'success');
+            this.showToast('Record as many or as few as you\'d like. Speak clearly! 🎤', 'success');
         });
         
         document.getElementById('decline-btn')?.addEventListener('click', () => {
@@ -143,35 +148,12 @@ class VoiceRecorder {
                     noiseSuppression: true
                 }
             });
-            
-            const options = {
-                mimeType: CONFIG.recording.mimeType,
-                audioBitsPerSecond: CONFIG.recording.audioBitsPerSecond
-            };
-            
-            // Check format support
-            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                if (MediaRecorder.isTypeSupported('audio/webm')) {
-                    options.mimeType = 'audio/webm';
-                } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
-                    options.mimeType = 'audio/mp4';
-                }
-            }
-            
-            this.mediaRecorder = new MediaRecorder(this.audioStream, options);
-            this.audioChunks = [];
-            
-            this.mediaRecorder.addEventListener('dataavailable', event => {
-                this.audioChunks.push(event.data);
-            });
-            
-            this.mediaRecorder.addEventListener('stop', () => {
-                this.handleRecordingStop();
-            });
-            
-            this.mediaRecorder.start();
+
+            await this.setupAudioProcessing();
+
             this.isRecording = true;
             this.isPaused = false;
+            this.elapsedTime = 0;
             this.startTime = Date.now() - this.elapsedTime;
             
             // Update UI
@@ -179,33 +161,68 @@ class VoiceRecorder {
             this.elements.pauseBtn.disabled = false;
             this.elements.stopBtn.disabled = false;
             this.elements.statusBadge.classList.add('active');
+            this.resetPauseButton();
             
             // Start timer and waveform
             this.startTimer();
             this.startWaveformAnimation();
+
+            this.maxDurationTimeout = setTimeout(() => {
+                if (this.isRecording) {
+                    this.stopRecording();
+                }
+            }, CONFIG.recording.maxDuration * 1000);
             
         } catch (error) {
             console.error('Error starting recording:', error);
-            this.showToast('Microphone access denied', 'error');
+            this.showToast(error.message || 'Unable to start recording.', 'error');
+            this.cleanupAudioResources();
         }
+    }
+
+    async setupAudioProcessing() {
+        this.recordedChunks = [];
+        this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
+            sampleRate: CONFIG.recording.sampleRate
+        });
+        await this.audioContext.resume();
+
+        this.recordingSampleRate = this.audioContext.sampleRate;
+        this.mediaSource = this.audioContext.createMediaStreamSource(this.audioStream);
+        this.analyser = this.audioContext.createAnalyser();
+        this.analyser.fftSize = 256;
+        this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+
+        this.processorNode = this.audioContext.createScriptProcessor(4096, 1, 1);
+        this.processorNode.onaudioprocess = (event) => {
+            if (!this.isRecording || this.isPaused) {
+                return;
+            }
+
+            const inputData = event.inputBuffer.getChannelData(0);
+            this.recordedChunks.push(new Float32Array(inputData));
+        };
+
+        this.silenceGain = this.audioContext.createGain();
+        this.silenceGain.gain.value = 0;
+
+        this.mediaSource.connect(this.analyser);
+        this.mediaSource.connect(this.processorNode);
+        this.processorNode.connect(this.silenceGain);
+        this.silenceGain.connect(this.audioContext.destination);
     }
     
     pauseRecording() {
+        if (!this.isRecording) {
+            return;
+        }
+
         if (this.isPaused) {
-            // Resume
-            this.mediaRecorder.resume();
             this.isPaused = false;
             this.startTime = Date.now() - this.elapsedTime;
             this.startTimer();
-            this.elements.pauseBtn.innerHTML = `
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                    <rect x="6" y="4" width="4" height="16" rx="1"/>
-                    <rect x="14" y="4" width="4" height="16" rx="1"/>
-                </svg>
-            `;
+            this.resetPauseButton();
         } else {
-            // Pause
-            this.mediaRecorder.pause();
             this.isPaused = true;
             clearInterval(this.timerInterval);
             this.elements.pauseBtn.innerHTML = `
@@ -217,31 +234,43 @@ class VoiceRecorder {
     }
     
     stopRecording() {
-        if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
-            this.mediaRecorder.stop();
-            this.audioStream.getTracks().forEach(track => track.stop());
-            
-            this.isRecording = false;
-            this.isPaused = false;
-            clearInterval(this.timerInterval);
-            cancelAnimationFrame(this.animationFrame);
-            
-            // Update UI
-            this.elements.recordBtn.classList.remove('recording');
-            this.elements.pauseBtn.disabled = true;
-            this.elements.stopBtn.disabled = true;
-            this.elements.statusBadge.classList.remove('active');
-            
-            // Clear waveform
-            this.clearWaveform();
+        if (!this.isRecording) {
+            return;
         }
+
+        const durationMs = this.isPaused ? this.elapsedTime : Date.now() - this.startTime;
+        const audioBlob = this.buildWavBlob();
+
+        this.isRecording = false;
+        this.isPaused = false;
+        clearInterval(this.timerInterval);
+        this.timerInterval = null;
+        if (this.maxDurationTimeout) {
+            clearTimeout(this.maxDurationTimeout);
+            this.maxDurationTimeout = null;
+        }
+        cancelAnimationFrame(this.animationFrame);
+        this.animationFrame = null;
+
+        this.elements.recordBtn.classList.remove('recording');
+        this.elements.pauseBtn.disabled = true;
+        this.elements.stopBtn.disabled = true;
+        this.elements.statusBadge.classList.remove('active');
+        this.resetPauseButton();
+
+        this.cleanupAudioResources();
+        this.clearWaveform();
+        this.handleRecordingStop(audioBlob, durationMs / 1000);
     }
     
-    handleRecordingStop() {
-        const actualMimeType = this.mediaRecorder.mimeType;
-        const audioBlob = new Blob(this.audioChunks, { type: actualMimeType });
+    handleRecordingStop(audioBlob, duration) {
         const audioUrl = URL.createObjectURL(audioBlob);
-        const duration = this.elapsedTime / 1000;
+
+        if (duration < CONFIG.recording.minDuration) {
+            this.showToast(`Recording too short. Please record at least ${CONFIG.recording.minDuration} seconds.`, 'error');
+            this.resetRecording();
+            return;
+        }
         
         // Store current recording
         this.currentRecording = {
@@ -260,6 +289,7 @@ class VoiceRecorder {
         } else {
             this.elements.playbackPhrase.textContent = `Recording ${this.formatDuration(duration)}`;
         }
+        this.elements.playbackMeta.textContent = `Upload format: WAV, sample rate: ${this.formatSampleRate(this.recordingSampleRate)} Hz, channels: mono`;
         this.showModal('playback-modal');
         
         // Reset timer
@@ -267,97 +297,117 @@ class VoiceRecorder {
         this.elements.timerDisplay.textContent = '00:00:00';
     }
     
-    async submitRecording() {
+    submitRecording() {
         if (!this.currentRecording) return;
         
         this.hideModal('playback-modal');
-        this.showToast('Uploading...', 'info');
         
-        try {
-            const metadata = {
-                sessionId: this.sessionId,
-                phraseId: this.currentPhraseIndex,
-                phraseText: this.currentRecording.phrase || 'Free recording',
-                timestamp: this.currentRecording.timestamp,
-                duration: this.currentRecording.duration,
-                audioFormat: this.currentRecording.blob.type,
-                sampleRate: CONFIG.recording.sampleRate,
-                projectId: CONFIG.metadata.projectId,
-                appVersion: CONFIG.metadata.appVersion
-            };
-            
-            await this.uploadRecording(this.currentRecording.blob, metadata);
-            
-            // Add to recent recordings
-            this.addToRecentRecordings({
-                name: this.isResearchMode ? 
-                    `Phrase ${this.currentPhraseIndex + 1}` : 
-                    `Recording_${Date.now()}`,
-                duration: this.currentRecording.duration,
-                url: this.currentRecording.url,
-                timestamp: Date.now()
-            });
-            
-            this.showToast('Recording uploaded successfully!', 'success');
-            
-            // Increment completed recordings count
-            this.completedRecordingsCount++;
-            localStorage.setItem('completedRecordingsCount', this.completedRecordingsCount.toString());
-            
-            // Show thank you modal after 3 recordings (only once)
-            if (this.completedRecordingsCount === 3 && !this.hasSeenThankYouModal) {
-                this.showThankYouModal();
-            }
-            
-            // Move to next phrase if in research mode
-            if (this.isResearchMode) {
-                this.currentPhraseIndex++;
-                if (this.currentPhraseIndex >= this.phrases.length) {
-                    this.showToast('All phrases completed!', 'success');
-                    this.isResearchMode = false;
-                    this.elements.phraseDisplay.classList.add('hidden');
-                } else {
-                    this.displayCurrentPhrase();
-                }
-            }
-            
-        } catch (error) {
-            console.error('Upload error:', error);
-            this.showToast('Upload failed. Please try again.', 'error');
+        // Increment completed recordings count immediately
+        this.completedRecordingsCount++;
+        localStorage.setItem('completedRecordingsCount', this.completedRecordingsCount.toString());
+        
+        // Show thank you modal after 3 recordings (only once)
+        if (this.completedRecordingsCount === 3 && !this.hasSeenThankYouModal) {
+            this.showThankYouModal();
         }
+        
+        // Move to next phrase if in research mode (do this immediately for UX)
+        if (this.isResearchMode) {
+            this.currentPhraseIndex++;
+            if (this.currentPhraseIndex >= this.phrases.length) {
+                this.showToast('All phrases completed! Uploads continue in background.', 'info');
+                this.isResearchMode = false;
+                this.elements.phraseDisplay.classList.add('hidden');
+            } else {
+                this.displayCurrentPhrase();
+            }
+        }
+        
+        // Show feedback that this recording is queued
+        const pending = this.pendingUploads + 1;
+        this.showToast(`Recording queued for upload (${pending} pending)...`, 'info');
+        
+        // Fire off the upload in the background (no await)
+        const recordingToUpload = this.currentRecording;
+        this.currentRecording = null;
+        this.recordedChunks = [];
+        this.elapsedTime = 0;
+        this.elements.timerDisplay.textContent = '00:00:00';
+        
+        // Start background upload
+        this.uploadRecordingAsync(recordingToUpload);
     }
     
-    async uploadRecording(audioBlob, metadata) {
+    uploadRecordingAsync(recording) {
+        this.pendingUploads++;
+        
+        this.uploadRecording(recording.blob)
+            .then(uploadResult => {
+                this.pendingUploads--;
+                const featureCount = uploadResult.features_extracted ?? 'unknown';
+                const totalRows = uploadResult.total_rows_in_csv ?? 'unknown';
+                this.showToast(`✓ Uploaded. Features: ${featureCount}, Rows: ${totalRows}`, 'success');
+            })
+            .catch(error => {
+                this.pendingUploads--;
+                console.error('Background upload error:', error);
+                this.showToast(`⚠ Upload failed: ${error.message}`, 'error');
+            });
+    }
+    
+    async uploadRecording(audioBlob) {
         const formData = new FormData();
         
-        let extension = 'webm';
-        const actualMimeType = audioBlob.type;
-        if (actualMimeType.includes('wav')) extension = 'wav';
-        else if (actualMimeType.includes('mp3')) extension = 'mp3';
-        else if (actualMimeType.includes('mp4')) extension = 'mp4';
-        
-        const filename = `recording_${metadata.sessionId}_${metadata.phraseId}.${extension}`;
+        if (audioBlob.type !== 'audio/wav') {
+            throw new Error(`Unexpected recorded format: ${audioBlob.type || 'unknown'}.`);
+        }
+
+        const filename = `recording_${this.sessionId}_${this.currentPhraseIndex}.wav`;
         formData.append('file', audioBlob, filename);
-        formData.append('label', JSON.stringify(metadata));
-        
-        const response = await fetch(CONFIG.api.endpoint, {
-            method: 'POST',
-            body: formData
-        });
-        
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Upload failed');
+
+        let response;
+        try {
+            response = await fetch(CONFIG.api.endpoint, {
+                method: 'POST',
+                body: formData
+            });
+        } catch (error) {
+            if (error instanceof TypeError) {
+                throw new Error('Upload could not reach the API. This is usually a network or CORS issue on the remote server.');
+            }
+
+            throw error;
         }
         
-        return await response.json();
+        const responseText = await response.text();
+        let responseData = {};
+        try {
+            responseData = responseText ? JSON.parse(responseText) : {};
+        } catch (e) {
+            responseData = { error: responseText || 'Upload failed' };
+        }
+
+        if (!response.ok) {
+            if (response.status === 415) {
+                throw new Error('The API rejected the WAV file format. Confirm the endpoint accepts PCM WAV uploads from the browser.');
+            }
+
+            throw new Error(responseData.error || responseData.message || `Upload failed (${response.status})`);
+        }
+
+        if (responseData.status !== 'ok') {
+            throw new Error(responseData.error || responseData.message || 'Unexpected API response. The upload may have reached the server but did not return the expected success payload.');
+        }
+
+        return responseData;
     }
     
     resetRecording() {
         this.currentRecording = null;
-        this.audioChunks = [];
+        this.recordedChunks = [];
         this.elapsedTime = 0;
         this.elements.timerDisplay.textContent = '00:00:00';
+        this.resetPauseButton();
     }
     
     startTimer() {
@@ -368,16 +418,7 @@ class VoiceRecorder {
     }
     
     startWaveformAnimation() {
-        if (!this.audioStream) return;
-        
-        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        this.analyser = this.audioContext.createAnalyser();
-        const source = this.audioContext.createMediaStreamSource(this.audioStream);
-        source.connect(this.analyser);
-        
-        this.analyser.fftSize = 256;
-        const bufferLength = this.analyser.frequencyBinCount;
-        this.dataArray = new Uint8Array(bufferLength);
+        if (!this.audioStream || !this.analyser || !this.dataArray) return;
         
         this.drawWaveform();
     }
@@ -415,11 +456,136 @@ class VoiceRecorder {
         const canvas = this.elements.waveformCanvas;
         const ctx = this.canvasContext;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
+    }
+
+    cleanupAudioResources() {
+        if (this.audioStream) {
+            this.audioStream.getTracks().forEach(track => track.stop());
+            this.audioStream = null;
+        }
+
+        if (this.mediaSource) {
+            this.mediaSource.disconnect();
+            this.mediaSource = null;
+        }
+
+        if (this.processorNode) {
+            this.processorNode.disconnect();
+            this.processorNode.onaudioprocess = null;
+            this.processorNode = null;
+        }
+
+        if (this.silenceGain) {
+            this.silenceGain.disconnect();
+            this.silenceGain = null;
+        }
+
         if (this.audioContext) {
             this.audioContext.close();
             this.audioContext = null;
         }
+
+        this.analyser = null;
+        this.dataArray = null;
+    }
+
+    buildWavBlob() {
+        if (this.recordedChunks.length === 0) {
+            return new Blob([], { type: 'audio/wav' });
+        }
+
+        const mergedSamples = this.mergeBuffers(this.recordedChunks);
+        const targetSampleRate = Math.min(CONFIG.recording.sampleRate, this.recordingSampleRate);
+        const processedSamples = this.recordingSampleRate === targetSampleRate
+            ? mergedSamples
+            : this.downsampleBuffer(mergedSamples, this.recordingSampleRate, targetSampleRate);
+
+        return this.encodeWav(processedSamples, targetSampleRate);
+    }
+
+    mergeBuffers(chunks) {
+        const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+        const merged = new Float32Array(totalLength);
+        let offset = 0;
+
+        chunks.forEach((chunk) => {
+            merged.set(chunk, offset);
+            offset += chunk.length;
+        });
+
+        return merged;
+    }
+
+    downsampleBuffer(buffer, inputSampleRate, outputSampleRate) {
+        if (outputSampleRate >= inputSampleRate) {
+            return buffer;
+        }
+
+        const sampleRateRatio = inputSampleRate / outputSampleRate;
+        const newLength = Math.round(buffer.length / sampleRateRatio);
+        const result = new Float32Array(newLength);
+        let offsetBuffer = 0;
+
+        for (let index = 0; index < result.length; index++) {
+            const nextOffsetBuffer = Math.round((index + 1) * sampleRateRatio);
+            let accum = 0;
+            let count = 0;
+
+            for (let sourceIndex = offsetBuffer; sourceIndex < nextOffsetBuffer && sourceIndex < buffer.length; sourceIndex++) {
+                accum += buffer[sourceIndex];
+                count++;
+            }
+
+            result[index] = count > 0 ? accum / count : 0;
+            offsetBuffer = nextOffsetBuffer;
+        }
+
+        return result;
+    }
+
+    encodeWav(samples, sampleRate) {
+        const bytesPerSample = 2;
+        const blockAlign = bytesPerSample;
+        const buffer = new ArrayBuffer(44 + samples.length * bytesPerSample);
+        const view = new DataView(buffer);
+
+        this.writeAsciiString(view, 0, 'RIFF');
+        view.setUint32(4, 36 + samples.length * bytesPerSample, true);
+        this.writeAsciiString(view, 8, 'WAVE');
+        this.writeAsciiString(view, 12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, 1, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * blockAlign, true);
+        view.setUint16(32, blockAlign, true);
+        view.setUint16(34, 16, true);
+        this.writeAsciiString(view, 36, 'data');
+        view.setUint32(40, samples.length * bytesPerSample, true);
+
+        let offset = 44;
+        for (let index = 0; index < samples.length; index++) {
+            const clampedSample = Math.max(-1, Math.min(1, samples[index]));
+            view.setInt16(offset, clampedSample < 0 ? clampedSample * 0x8000 : clampedSample * 0x7FFF, true);
+            offset += bytesPerSample;
+        }
+
+        return new Blob([buffer], { type: 'audio/wav' });
+    }
+
+    writeAsciiString(view, offset, value) {
+        for (let index = 0; index < value.length; index++) {
+            view.setUint8(offset + index, value.charCodeAt(index));
+        }
+    }
+
+    resetPauseButton() {
+        this.elements.pauseBtn.innerHTML = `
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="6" y="4" width="4" height="16" rx="1"/>
+                <rect x="14" y="4" width="4" height="16" rx="1"/>
+            </svg>
+        `;
     }
     
     // Research mode functions
@@ -437,72 +603,6 @@ class VoiceRecorder {
         this.elements.phraseText.textContent = this.phrases[this.currentPhraseIndex];
         this.elements.phraseCounter.textContent = 
             `${this.currentPhraseIndex + 1} / ${this.phrases.length}`;
-    }
-    
-    // Recent recordings
-    addToRecentRecordings(recording) {
-        let recentRecordings = JSON.parse(localStorage.getItem('recentRecordings') || '[]');
-        recentRecordings.unshift(recording);
-        recentRecordings = recentRecordings.slice(0, 10); // Keep only 10
-        localStorage.setItem('recentRecordings', JSON.stringify(recentRecordings));
-        this.loadRecentRecordings();
-    }
-    
-    loadRecentRecordings() {
-        const recentRecordings = JSON.parse(localStorage.getItem('recentRecordings') || '[]');
-        this.elements.recordsList.innerHTML = '';
-        
-        if (recentRecordings.length === 0) {
-            this.elements.recordsList.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 20px;">No recordings yet</p>';
-            return;
-        }
-        
-        recentRecordings.forEach((recording, index) => {
-            const item = document.createElement('div');
-            item.className = 'record-item';
-            item.innerHTML = `
-                <div class="play-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M8 5v14l11-7z"/>
-                    </svg>
-                </div>
-                <div class="record-info">
-                    <div class="record-name">${recording.name}</div>
-                    <div class="record-duration">${this.formatDuration(recording.duration)}</div>
-                </div>
-                <div class="record-actions">
-                    <button class="icon-btn delete-btn" data-index="${index}">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
-                        </svg>
-                    </button>
-                </div>
-            `;
-            
-            // Play recording
-            item.querySelector('.play-icon').addEventListener('click', () => {
-                if (recording.url) {
-                    const audio = new Audio(recording.url);
-                    audio.play();
-                }
-            });
-            
-            // Delete recording
-            item.querySelector('.delete-btn').addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.deleteRecording(index);
-            });
-            
-            this.elements.recordsList.appendChild(item);
-        });
-    }
-    
-    deleteRecording(index) {
-        let recentRecordings = JSON.parse(localStorage.getItem('recentRecordings') || '[]');
-        recentRecordings.splice(index, 1);
-        localStorage.setItem('recentRecordings', JSON.stringify(recentRecordings));
-        this.loadRecentRecordings();
-        this.showToast('Recording deleted', 'info');
     }
     
     // UI helpers
@@ -528,11 +628,6 @@ class VoiceRecorder {
         setTimeout(() => {
             this.elements.toast.classList.add('hidden');
         }, 3000);
-    }
-    
-    checkFirstVisit() {
-        // Always show consent modal on page load (it's not hidden by default)
-        // Modal will be hidden when user consents or declines
     }
     
     showThankYouModal() {
@@ -580,6 +675,10 @@ class VoiceRecorder {
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
         return `${mins}.${secs.toString().padStart(2, '0')} mins`;
+    }
+
+    formatSampleRate(sampleRate) {
+        return Math.round(sampleRate).toLocaleString('en-US');
     }
 }
 

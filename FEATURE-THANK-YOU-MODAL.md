@@ -18,7 +18,7 @@ The modal displays:
 - **Current recording count** (3 recordings completed)
 - **Gratitude message**: "I am really grateful for your time"
 - **Option to stop** with a note that 3 recordings are already valuable
-- **Context about full study**: Mentions there are 98 total phrases (~20-25 minutes)
+- **Context about full study**: Mentions there are 110 total phrases (~25-30 minutes)
 - **Recommendation**: Advises against doing all phrases in one session for time's sake
 
 ### User Options
@@ -96,8 +96,8 @@ Recording 1 ✅ → Recording 2 ✅ → Recording 3 ✅ → 🎉 Thank You Modal
    I am really grateful for your time. You can stop here if you'd like.
    
    Note: While you're welcome to continue recording more phrases,
-   please note there are 98 total phrases, which would take 
-   approximately 20-25 minutes. For time's sake, I don't advise 
+   please note there are 110 total phrases, which would take 
+   approximately 25-30 minutes. For time's sake, I don't advise 
    doing all of them in one session.
    
    [Stop Here - Submit Recordings]  [Continue Recording]
@@ -236,7 +236,7 @@ Potential improvements:
    - Progressive encouragement
 
 3. **Progress visualization**
-   - Show progress bar: "3/98 phrases"
+   - Show progress bar: "3/110 phrases"
    - Visual feedback on contribution
 
 4. **Custom messages per milestone**
